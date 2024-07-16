@@ -1,0 +1,167 @@
+# general settings
+name: Deblurring_HFG_fine
+model_type: ImageCleanModel
+scale: 1
+num_gpu: 4  # set num_gpu: 0 for cpu mode
+manual_seed: 100
+
+# dataset and data loader settings
+datasets:
+  train:
+    name: TrainSet
+    type: Dataset_PairedImage
+
+    dataroot_gt: /data1/lxp/dataset/GoPro/train/target_crops
+    dataroot_lq: /data1/lxp/dataset/GoPro/train/input_crops
+    geometric_augs: true
+
+    filename_tmpl: '{}'
+    io_backend:
+      type: disk
+
+    # data loader
+    use_shuffle: true
+    num_worker_per_gpu: 8
+    batch_size_per_gpu: 16
+
+    ### ---------------------Patch-Cycle training--------------------------------------
+    mini_batch_sizes: [16,4,1]   # Batch size per gpu
+    iters: [10000]
+    gt_size:  256                 # Max patch size for progressive training
+    gt_sizes: [64,128,256]       # Patch sizes for progressive training.
+    patch_n: 1
+    nums: [50]
+    ### ------------------------------------------------------------
+
+    dataset_enlarge_ratio: 1
+    prefetch_mode: cuda
+    pin_memory: true
+
+  val:
+    name: ValSet
+    type: Dataset_PairedImage
+    dataroot_gt: /data1/lxp/dataset/GoPro/val/target
+    dataroot_lq: /data1/lxp/dataset/GoPro/val/input
+    io_backend:
+      type: disk
+
+    gt_size: 128
+    patch_n: 1
+
+# network structures
+network_g:
+  type: DFT
+  inp_channels: 6
+  out_channels: 3
+  dim: 48
+  num_blocks: [4,6,6,8]
+  heads: [1,2,4,8]
+  ffn_factor: 4.0
+  bias: False
+  LayerNorm_type: WithBias
+  dual_pixel_task: False
+
+network_g_rough:
+  type: DeblurNet_v2
+  in_channel: 3
+  out_channel: 3
+  activ: 'lrelu'
+  norm: 'none'
+  ngf:   16
+  deblur_res_num: 3
+  deblur_res_num2: 3
+  final_activ: 'none'
+  pad_type: 'zero'
+  upsample_layer: 'pixelshuffle'
+  shuffle_mode: 'caffe'
+
+# path
+path:
+  pretrain_network_g: /data1/lxp/cc/experiments/Deblurring_HFG_fine_2/models/net_g_300000.pth
+  pretrain_network_g_rough_fix: /data1/lxp/pretained_models/net_g_400000_res33.pth
+  strict_load_g: ture
+  param_key_g: params_ema
+  resume_state: ~
+
+# training settings
+train:
+  ema_decay: 0.999
+  total_iter: 500000
+  warmup_iter: -1 # no warm up
+  use_grad_clip: False
+
+  scheduler:
+    type: CosineAnnealingRestartCyclicLR
+    periods: [100000, 400000]
+    restart_weights: [1,1]
+    eta_mins: [0.00004, 0.000001]
+
+  mixing_augs:
+    mixup: true
+    mixup_beta: 1.2
+    use_identity: true
+
+  optim_g:
+    type: AdamW
+    lr: !!float 0.00004
+    weight_decay: !!float 1e-4
+    betas: [0.9, 0.999]
+
+  # losses
+  pixel_opt1:
+      type: MS_SSIM
+
+  pixel_opt2:
+    type: L1Loss
+    loss_weight: 0.16
+    reduction: mean
+  
+  pixel_opt3:
+    type: DWTLoss
+    loss_weight: 1
+    reduction: mean
+    
+  # pixel_opt:
+  #   type: L1Loss
+  #   loss_weight: 1
+  #   reduction: mean
+
+# validation settings
+val:
+  val_freq: 200
+  save_img: true
+  rgb2bgr: true
+  use_image: true
+
+  metrics:
+    psnr: # metric name, can be arbitrary
+      type: calculate_psnr
+      crop_border: 0
+      test_y_channel: false
+    ssim:
+      type: calculate_ssim
+      crop_border: 0
+      test_y_channel: false
+
+# logging settings
+logger:
+  print_freq: 200
+  save_checkpoint_freq: 2000
+  use_tb_logger: true
+  wandb:
+    project: ~
+    resume_id: ~
+
+# dist training settings
+dist_params:
+  backend: nccl
+  port: 29500
+
+diffusion:
+    beta_schedule: linear
+    beta_start: 0.0001
+    beta_end: 0.02
+    num_diffusion_timesteps: 1000 
+    sampling_timesteps: 3        
+
+
