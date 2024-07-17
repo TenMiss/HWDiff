@@ -48,7 +48,7 @@ note: The trained models will be opened after the article is accepted.
    ```bash
    python test_real.py
    ```
-3.Calculating PSNR/SSIM scores
+3. Calculating PSNR/SSIM scores
 
    For GoPro dataset and HIDE dataset, run
    ```bash
