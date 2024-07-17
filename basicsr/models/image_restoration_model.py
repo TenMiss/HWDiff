@@ -483,6 +483,8 @@ class ImageCleanModel(BaseModel):
                               'net_g',
                               current_iter,
                               param_key=['params', 'params_ema'])
+            self.save_network([self.net_g_rough], 'net_g_rough', current_iter, param_key=['params'])
         else:
             self.save_network(self.net_g, 'net_g', current_iter)
+            self.save_network([self.net_g_rough], 'net_g_rough', current_iter, param_key=['params'])
         self.save_training_state(epoch, current_iter)
