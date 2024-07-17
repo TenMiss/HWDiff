@@ -38,6 +38,7 @@ note: The trained models will be opened after the article is accepted.
 
 1. Download the pre-trained model and place it in ./pretrained_models/
 2. Testing
+   
    For GoPro dataset and HIDE dataset, run
    ```bash
    python test.py
@@ -48,6 +49,7 @@ note: The trained models will be opened after the article is accepted.
    python test_real.py
    ```
 3.Calculating PSNR/SSIM scores
+
    For GoPro dataset and HIDE dataset, run
    ```bash
    python calculate_psnr_ssim.py
@@ -59,4 +61,5 @@ note: The trained models will be opened after the article is accepted.
    ```
 
 ## Acknowledgements
+
 This code is built on BasicSR, Restormer, and C2F-DFT.
