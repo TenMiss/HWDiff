@@ -203,16 +203,26 @@ def dwt_mse_loss(x, y ,J=3):
     y_dwt_f = pw.DWTForward(J=J, wave='haar', mode='symmetric')
     x_dwt_f.cuda()
     y_dwt_f.cuda()
-    x_dwt=x_dwt_f(x)[1]
-    y_dwt=y_dwt_f(y)[1]
+    # x_dwt_f and y_dwt_f are tuples containing (lowpass, [highpass])
+    x_lowpass, x_highpass = x_dwt_f(x)
+    y_lowpass, y_highpass = y_dwt_f(y)
+    
     h_mse,v_mse,d_mse,a_mse=0,0,0,0
+
+    # Calculate MSE for the low-frequency (approximation) coefficients
+    a_mse = torch.nn.functional.mse_loss(x_lowpass, y_lowpass)
     for i in range(J):
         # Calculate MSE between the coefficients of each subband
-        h_mse += torch.nn.functional.mse_loss(x_dwt[i][:,:,0,:,:], y_dwt[i][:,:,0,:,:])
-        v_mse += torch.nn.functional.mse_loss(x_dwt[i][:,:,1,:,:], y_dwt[i][:,:,1,:,:])
-        d_mse += torch.nn.functional.mse_loss(x_dwt[i][:,:,2,:,:], y_dwt[i][:,:,2,:,:])
-        a_mse += torch.nn.functional.mse_loss(x_dwt[i][:,:,3,:,:], y_dwt[i][:,:,3,:,:])
+        h_mse += torch.nn.functional.mse_loss(x_highpass[i][:,:,0,:,:], y_highpass[i][:,:,0,:,:])
+        v_mse += torch.nn.functional.mse_loss(x_highpass[i][:,:,1,:,:], y_highpass[i][:,:,1,:,:])
+        d_mse += torch.nn.functional.mse_loss(x_highpass[i][:,:,2,:,:], y_highpass[i][:,:,2,:,:])
 
+        # Update lowpass for the next iteration
+        if i < J - 1:
+            x_lowpass = x_highpass[i][:,:,3,:,:]
+            y_lowpass = y_highpass[i][:,:,3,:,:]
+            a_mse += torch.nn.functional.mse_loss(x_lowpass, y_lowpass)
+            
     # Sum the MSE losses across subbands and return
     return h_mse + v_mse + d_mse + a_mse
 
